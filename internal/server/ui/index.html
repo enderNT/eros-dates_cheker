@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verificador de citas</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Calendly Scheduler</p>
+          <h1>Verificador local de citas proximas</h1>
+          <p class="hero-copy">
+            Configura cada cuanto se consulta Calendly, define en que horarios debe correr el proceso
+            y revisa el historial de validaciones en una sola pantalla.
+          </p>
+        </div>
+        <button id="run-now" class="primary-button">Ejecutar ahora</button>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Configuracion</h2>
+            <span id="save-feedback" class="muted"></span>
+          </div>
+          <form id="config-form">
+            <label class="switch">
+              <input type="checkbox" id="enabled" />
+              <span>Scheduler habilitado</span>
+            </label>
+
+            <div class="form-grid">
+              <label>
+                <span>Timezone</span>
+                <input type="text" id="timezone" placeholder="America/Mexico_City" />
+              </label>
+              <label>
+                <span>Frecuencia (minutos)</span>
+                <input type="number" id="run-interval" min="1" max="1440" />
+              </label>
+              <label>
+                <span>Ventana de consulta (minutos)</span>
+                <input type="number" id="lookahead" min="1" max="10080" />
+              </label>
+            </div>
+
+            <fieldset class="fieldset">
+              <legend>Dias activos</legend>
+              <div id="active-days" class="days-grid"></div>
+            </fieldset>
+
+            <div class="panel-header inline-header">
+              <h3>Franjas horarias</h3>
+              <button type="button" id="add-window" class="ghost-button">Agregar franja</button>
+            </div>
+            <div id="time-windows" class="windows-list"></div>
+
+            <button type="submit" class="primary-button wide-button">Guardar configuracion</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Estado</h2>
+            <span id="status-chip" class="status-chip">Cargando...</span>
+          </div>
+          <div class="status-cards">
+            <div class="status-card">
+              <span class="label">Servidor</span>
+              <strong id="server-time">-</strong>
+            </div>
+            <div class="status-card">
+              <span class="label">Proxima ejecucion</span>
+              <strong id="next-run">-</strong>
+            </div>
+            <div class="status-card">
+              <span class="label">Ultimo resultado</span>
+              <strong id="last-status">-</strong>
+            </div>
+            <div class="status-card">
+              <span class="label">Citas encontradas</span>
+              <strong id="last-events-count">-</strong>
+            </div>
+          </div>
+
+          <section class="detail-section">
+            <h3>Ultima ejecucion</h3>
+            <div id="last-run-details" class="detail-card muted">Aun no hay ejecuciones.</div>
+          </section>
+
+          <section class="detail-section">
+            <h3>Citas encontradas</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Evento</th>
+                    <th>Inicio</th>
+                    <th>Invitado</th>
+                    <th>Email</th>
+                    <th>Telefono</th>
+                  </tr>
+                </thead>
+                <tbody id="appointments-body">
+                  <tr>
+                    <td colspan="5" class="muted centered">Sin datos.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="detail-section">
+            <h3>Historial reciente</h3>
+            <div id="history-list" class="history-list muted">Sin historial.</div>
+          </section>
+        </article>
+      </section>
+    </main>
+
+    <template id="window-template">
+      <div class="window-card">
+        <div class="window-top">
+          <label>
+            <span>Etiqueta</span>
+            <input type="text" data-field="label" placeholder="Horario operativo" />
+          </label>
+          <button type="button" class="danger-button" data-action="remove-window">Eliminar</button>
+        </div>
+        <div class="form-grid">
+          <label>
+            <span>Inicio</span>
+            <input type="time" data-field="start" />
+          </label>
+          <label>
+            <span>Fin</span>
+            <input type="time" data-field="end" />
+          </label>
+        </div>
+        <div class="days-grid compact" data-field="days"></div>
+      </div>
+    </template>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>
