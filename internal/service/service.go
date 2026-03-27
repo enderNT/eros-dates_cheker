@@ -30,6 +30,7 @@ type Service struct {
 	store  *store.FileStore
 	client calendlyClient
 	log    *termlog.Logger
+	now    func() time.Time
 
 	mu      sync.RWMutex
 	cfg     config.SchedulerConfig
@@ -62,6 +63,7 @@ func New(fileStore *store.FileStore, client calendlyClient, logger *termlog.Logg
 		store:   fileStore,
 		client:  client,
 		log:     logger,
+		now:     time.Now,
 		cfg:     cfg,
 		history: history,
 	}, nil
@@ -101,7 +103,7 @@ func (s *Service) GetStatus(now time.Time) appmodel.StatusSnapshot {
 
 	snapshot := appmodel.StatusSnapshot{
 		Running:    s.running,
-		ServerTime: now.UTC(),
+		ServerTime: s.inConfigLocation(now, s.cfg),
 	}
 	if len(s.history) > 0 {
 		lastRun := s.history[0]
@@ -150,7 +152,7 @@ func (s *Service) RunValidation(ctx context.Context, trigger string) (*appmodel.
 		s.mu.Unlock()
 	}()
 
-	now := time.Now().UTC()
+	now := s.currentBusinessTime(cfg)
 	run := appmodel.ValidationRun{
 		ID:                       fmt.Sprintf("run-%d", runCounter.Add(1)),
 		Trigger:                  trigger,
@@ -171,7 +173,7 @@ func (s *Service) RunValidation(ctx context.Context, trigger string) (*appmodel.
 	if err != nil {
 		run.Status = "failed"
 		run.Error = err.Error()
-		run.EndedAt = time.Now().UTC()
+		run.EndedAt = s.currentBusinessTime(cfg)
 		s.log.Error("consulta a Calendly fallo", "run_id", run.ID, "error", err)
 		s.logRunFinished(run)
 		s.finishRun(run)
@@ -182,7 +184,7 @@ func (s *Service) RunValidation(ctx context.Context, trigger string) (*appmodel.
 	appointments, identityStatus, identityErr := s.client.ResolveInviteeIdentities(ctx, run.Events)
 	run.Events = appointments
 	run.IdentityResolutionStatus = identityStatus
-	run.EndedAt = time.Now().UTC()
+	run.EndedAt = s.currentBusinessTime(cfg)
 
 	switch {
 	case identityErr != nil:
@@ -366,4 +368,16 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *Service) currentBusinessTime(cfg config.SchedulerConfig) time.Time {
+	return s.inConfigLocation(s.now(), cfg)
+}
+
+func (s *Service) inConfigLocation(value time.Time, cfg config.SchedulerConfig) time.Time {
+	loc, err := cfg.Location()
+	if err != nil {
+		return value.UTC()
+	}
+	return value.In(loc)
 }
