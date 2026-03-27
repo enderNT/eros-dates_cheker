@@ -33,7 +33,7 @@ func LoadSettings() (Settings, error) {
 	}
 
 	settings := Settings{
-		ServerAddr: valueOrDefault("SERVER_ADDR", ":8080"),
+		ServerAddr: resolveServerAddr(),
 		DataDir:    valueOrDefault("APP_DATA_DIR", "data"),
 		Calendly: CalendlySettings{
 			BaseURL:      valueOrDefault("CALENDLY_API_BASE_URL", "https://api.calendly.com"),
@@ -55,4 +55,17 @@ func valueOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func resolveServerAddr() string {
+	if value := strings.TrimSpace(os.Getenv("SERVER_ADDR")); value != "" {
+		return value
+	}
+	if port := strings.TrimSpace(os.Getenv("PORT")); port != "" {
+		if strings.HasPrefix(port, ":") {
+			return port
+		}
+		return ":" + port
+	}
+	return ":8080"
 }

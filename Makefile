@@ -8,7 +8,7 @@ GOFMT_FILES := $(shell find cmd internal -type f -name '*.go')
 
 .DEFAULT_GOAL := help
 
-.PHONY: help serve run dev build test fmt check clean
+.PHONY: help serve run dev build test fmt check docker-build clean
 
 help: ## Muestra los comandos disponibles
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z_-]+:.*## / {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -32,6 +32,9 @@ fmt: ## Formatea el codigo Go
 	gofmt -w $(GOFMT_FILES)
 
 check: fmt test build ## Ejecuta formato, tests y build
+
+docker-build: ## Construye la imagen Docker local
+	docker build -t $(APP_NAME):local .
 
 clean: ## Elimina artefactos de build sin tocar data/
 	rm -rf $(BUILD_DIR) server

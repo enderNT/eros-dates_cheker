@@ -2,23 +2,28 @@ package scheduler
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"verificador-citas-eros/internal/service"
+	"verificador-citas-eros/internal/termlog"
 )
 
 const heartbeat = 15 * time.Second
 
 type Scheduler struct {
 	service *service.Service
+	log     *termlog.Logger
 }
 
-func New(service *service.Service) *Scheduler {
-	return &Scheduler{service: service}
+func New(service *service.Service, logger *termlog.Logger) *Scheduler {
+	if logger == nil {
+		logger = termlog.New(nil)
+	}
+	return &Scheduler{service: service, log: logger}
 }
 
 func (s *Scheduler) Start(ctx context.Context) {
+	s.tryRun(ctx)
 	ticker := time.NewTicker(heartbeat)
 	defer ticker.Stop()
 
@@ -39,6 +44,6 @@ func (s *Scheduler) tryRun(ctx context.Context) {
 		return
 	}
 	if _, err := s.service.RunValidation(ctx, "scheduled"); err != nil {
-		log.Printf("scheduler: %v", err)
+		s.log.Warn("scheduler encontro un problema al ejecutar", "error", err)
 	}
 }

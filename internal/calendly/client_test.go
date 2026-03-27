@@ -99,15 +99,19 @@ func TestClientListsEventsAndResolvesInvitees(t *testing.T) {
 		}),
 	}
 
-	appointments, scopeUsed, err := client.ListScheduledEvents(context.Background(), time.Now().UTC(), time.Now().UTC().Add(2*time.Hour))
+	result, err := client.ListScheduledEvents(context.Background(), time.Now().UTC(), time.Now().UTC().Add(2*time.Hour))
 	if err != nil {
 		t.Fatalf("ListScheduledEvents returned error: %v", err)
 	}
-	if scopeUsed != "organization" {
-		t.Fatalf("unexpected scope used: %s", scopeUsed)
+	if result.ScopeUsed != "organization" {
+		t.Fatalf("unexpected scope used: %s", result.ScopeUsed)
 	}
+	if len(result.RawEvents) != 2 {
+		t.Fatalf("expected 2 raw events, got %d", len(result.RawEvents))
+	}
+	appointments := result.FilteredAppointments
 	if len(appointments) != 2 {
-		t.Fatalf("expected 2 appointments, got %d", len(appointments))
+		t.Fatalf("expected 2 filtered appointments, got %d", len(appointments))
 	}
 
 	appointments, identityStatus, err := client.ResolveInviteeIdentities(context.Background(), appointments)

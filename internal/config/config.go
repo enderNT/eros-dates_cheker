@@ -131,23 +131,34 @@ func (c SchedulerConfig) NextEligibleTime(from time.Time, lastRun *time.Time) (*
 	}
 
 	candidate := from.In(loc)
+	if c.IsWithinWindow(candidate) && c.intervalSatisfied(candidate, lastRun, loc) {
+		candidateUTC := candidate.UTC()
+		return &candidateUTC, true
+	}
+
+	searchStart := ceilToMinute(candidate)
 	if lastRun != nil {
 		nextByInterval := lastRun.In(loc).Add(time.Duration(c.RunIntervalMinutes) * time.Minute)
-		if nextByInterval.After(candidate) {
-			candidate = nextByInterval
+		if nextByInterval.After(searchStart) {
+			searchStart = ceilToMinute(nextByInterval)
 		}
 	}
-	if candidate.Second() > 0 || candidate.Nanosecond() > 0 {
-		candidate = candidate.Truncate(time.Minute).Add(time.Minute)
-	}
 	for i := 0; i <= maxScheduleSearchMinutes; i++ {
-		probe := candidate.Add(time.Duration(i) * time.Minute)
+		probe := searchStart.Add(time.Duration(i) * time.Minute)
 		if c.IsWithinWindow(probe) {
 			probeUTC := probe.UTC()
 			return &probeUTC, true
 		}
 	}
 	return nil, false
+}
+
+func (c SchedulerConfig) intervalSatisfied(candidate time.Time, lastRun *time.Time, loc *time.Location) bool {
+	if lastRun == nil {
+		return true
+	}
+	nextByInterval := lastRun.In(loc).Add(time.Duration(c.RunIntervalMinutes) * time.Minute)
+	return !candidate.Before(nextByInterval)
 }
 
 func validateWindow(window TimeWindow) error {
@@ -243,4 +254,11 @@ func uniqueSortedDays(days []int) []int {
 	}
 	slices.Sort(out)
 	return out
+}
+
+func ceilToMinute(value time.Time) time.Time {
+	if value.Second() == 0 && value.Nanosecond() == 0 {
+		return value
+	}
+	return value.Truncate(time.Minute).Add(time.Minute)
 }

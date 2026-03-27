@@ -25,6 +25,24 @@ type Client struct {
 	httpClient   *http.Client
 }
 
+type FetchResult struct {
+	ScopeUsed            string
+	PagesFetched         int
+	RawEvents            []FetchedEvent
+	FilteredAppointments []appmodel.Appointment
+}
+
+type FetchedEvent struct {
+	EventURI      string
+	EventName     string
+	StartTime     time.Time
+	EndTime       time.Time
+	Status        string
+	EventType     string
+	Included      bool
+	ExcludeReason string
+}
+
 type scopeInfo struct {
 	Kind string
 	URI  string
@@ -85,10 +103,10 @@ func NewClient(settings envx.CalendlySettings) *Client {
 	}
 }
 
-func (c *Client) ListScheduledEvents(ctx context.Context, windowStart, windowEnd time.Time) ([]appmodel.Appointment, string, error) {
+func (c *Client) ListScheduledEvents(ctx context.Context, windowStart, windowEnd time.Time) (FetchResult, error) {
 	scope, err := c.resolveScope(ctx)
 	if err != nil {
-		return nil, "", err
+		return FetchResult{}, err
 	}
 
 	query := url.Values{}
@@ -98,22 +116,41 @@ func (c *Client) ListScheduledEvents(ctx context.Context, windowStart, windowEnd
 	query.Set("max_start_time", windowEnd.UTC().Format(time.RFC3339))
 	query.Set("count", fmt.Sprintf("%d", c.pageSize))
 
-	var appointments []appmodel.Appointment
+	result := FetchResult{
+		ScopeUsed:            scope.Kind,
+		RawEvents:            []FetchedEvent{},
+		FilteredAppointments: []appmodel.Appointment{},
+	}
 	nextURL := c.baseURL + "/scheduled_events?" + query.Encode()
 	for nextURL != "" {
 		var payload scheduledEventsResponse
 		if err := c.getJSON(ctx, nextURL, &payload); err != nil {
-			return nil, scope.Kind, err
+			return result, err
 		}
+		result.PagesFetched++
 
 		for _, item := range payload.Collection {
+			entry := FetchedEvent{
+				EventURI:  item.URI,
+				EventName: item.Name,
+				StartTime: item.StartTime.UTC(),
+				EndTime:   item.EndTime.UTC(),
+				Status:    item.Status,
+				EventType: item.EventType,
+			}
 			if item.Status != "" && item.Status != "active" {
+				entry.ExcludeReason = "status_no_activo"
+				result.RawEvents = append(result.RawEvents, entry)
 				continue
 			}
 			if c.eventTypeURI != "" && item.EventType != "" && item.EventType != c.eventTypeURI {
+				entry.ExcludeReason = "event_type_distinto"
+				result.RawEvents = append(result.RawEvents, entry)
 				continue
 			}
-			appointments = append(appointments, appmodel.Appointment{
+			entry.Included = true
+			result.RawEvents = append(result.RawEvents, entry)
+			result.FilteredAppointments = append(result.FilteredAppointments, appmodel.Appointment{
 				EventURI:  item.URI,
 				StartTime: item.StartTime.UTC(),
 				EndTime:   item.EndTime.UTC(),
@@ -127,7 +164,7 @@ func (c *Client) ListScheduledEvents(ctx context.Context, windowStart, windowEnd
 		}
 	}
 
-	return appointments, scope.Kind, nil
+	return result, nil
 }
 
 func (c *Client) ResolveInviteeIdentities(ctx context.Context, appointments []appmodel.Appointment) ([]appmodel.Appointment, string, error) {
